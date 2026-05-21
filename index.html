@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HUD Dashboard OJT 2 - Split Table Edition</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Orbitron:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0; padding: 0;
+            background-color: #030710;
+            color: #ffffff;
+            font-family: 'Inter', sans-serif;
+            display: flex; flex-direction: column; align-items: center;
+            height: 100vh; overflow: hidden;
+            position: relative;
+        }
+
+        body::after {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: 
+                linear-gradient(rgba(0, 243, 255, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 243, 255, 0.04) 1px, transparent 1px);
+            background-size: 40px 40px; z-index: -2; pointer-events: none;
+        }
+
+        .nav-tabs {
+            width: 100%; padding: 15px 0;
+            background: rgba(3, 7, 16, 0.9);
+            border-bottom: 2px solid #00f3ff; 
+            box-shadow: 0 0 15px rgba(0, 243, 255, 0.3);
+            display: flex; justify-content: center; gap: 20px;
+            z-index: 10;
+        }
+        
+        .tab-btn {
+            background: rgba(0, 243, 255, 0.05); color: #00f3ff;
+            border: 1px solid #00f3ff; border-radius: 4px;
+            padding: 10px 25px; cursor: pointer; 
+            font-family: 'Inter', sans-serif;
+            font-size: 13px; font-weight: 700; letter-spacing: 1px;
+            text-transform: uppercase; transition: all 0.3s ease-in-out;
+        }
+        .tab-btn:hover { background: rgba(0, 243, 255, 0.2); box-shadow: 0 0 15px #00f3ff; }
+        .tab-btn.active { 
+            background: #00f3ff; color: #000; border-color: #00f3ff;
+            box-shadow: 0 0 20px #00f3ff, inset 0 0 10px #fff; 
+        }
+
+        /* 🔴 TAMBAHAN CSS TANGGAL (Melayang di kanan atas, tidak ganggu ukuran layout) 🔴 */
+        .hud-date {
+            position: absolute;
+            top: 25px;
+            right: 30px;
+            color: #00f3ff;
+            font-family: 'Orbitron', 'Inter', sans-serif;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(0, 243, 255, 0.6);
+            z-index: 20;
+            text-transform: uppercase;
+        }
+
+        .content-container {
+            width: 96vw; height: calc(100vh - 90px);
+            margin-top: 15px; padding: 20px; box-sizing: border-box;
+            background: rgba(3, 7, 16, 0.75);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            border-radius: 8px;
+            box-shadow: inset 0 0 30px rgba(0, 243, 255, 0.05);
+            position: relative; z-index: 5;
+            display: flex; flex-direction: column;
+        }
+
+        .tab-content { display: none; width: 100%; height: 100%; }
+        .tab-content.active { display: block; }
+        
+        /* 🔴 JURUS TABEL NYAMPING (SPLIT 2 KOLOM) 🔴 */
+        .table-split-container {
+            display: flex;
+            gap: 30px; /* Jarak antara tabel kiri dan kanan */
+            width: 100%;
+            height: calc(100% - 50px);
+        }
+        .split-table {
+            width: 50%;
+            border-collapse: separate; 
+            border-spacing: 0 4px; /* Jarak antar baris dirapatkan */
+            margin-top: 0;
+        }
+
+        th { 
+            background: rgba(0, 243, 255, 0.1); color: #00f3ff; 
+            padding: 10px 12px; /* Padding dirampingkan */
+            text-align: left; font-size: 12px; 
+            font-family: 'Inter', sans-serif; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+            border-top: 1px solid #00f3ff; border-bottom: 1px solid #00f3ff;
+        }
+        td { 
+            background: rgba(255, 255, 255, 0.02); 
+            padding: 8px 12px; /* Padding atas-bawah dikurangi biar hemat tinggi layar */
+            font-size: 13px; font-weight: 500; border-bottom: 1px solid rgba(0, 243, 255, 0.1);
+        }
+        tr:hover td { background: rgba(0, 243, 255, 0.08); border-color: #00f3ff; }
+        
+        .badge { padding: 4px 8px; font-size: 10px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase; border-radius: 4px; }
+        .badge-merah { background: rgba(255, 0, 60, 0.15); color: #ff003c; border: 1px solid #ff003c; }
+        .badge-kuning { background: rgba(252, 232, 3, 0.15); color: #fce803; border: 1px solid #fce803; }
+        .badge-hijau { background: rgba(0, 255, 157, 0.15); color: #00ff9d; border: 1px solid #00ff9d; }
+        .badge-oranye { background: rgba(255, 140, 0, 0.15); color: #ff8c00; border: 1px solid #ff8c00; }
+
+        .title-table { font-size: 22px; font-weight: 800; margin-bottom: 15px; color: #00f3ff; text-align: center; text-transform: uppercase; text-shadow: 0 0 15px rgba(0,243,255,0.4); letter-spacing: 1px;}
+        #loading { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 20px; font-weight: 700; color: #00f3ff; animation: pulse 1.5s infinite; text-shadow: 0 0 15px #00f3ff; z-index: 100;}
+        @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
+    </style>
+</head>
+<body>
+
+    <!-- 🔴 WIDGET TANGGAL 🔴 -->
+    <div id="hudDate" class="hud-date">SYNCING...</div>
+
+    <div class="nav-tabs">
+        <button class="tab-btn active" onclick="switchTab('chartOil', this)">📊 Oil Quadrant</button>
+        <button class="tab-btn" onclick="switchTab('tableOil', this)">📋 Prioritas Oil</button>
+        <button class="tab-btn" onclick="switchTab('chartKernel', this)">📊 Kernel Quadrant</button>
+        <button class="tab-btn" onclick="switchTab('tableKernel', this)">📋 Ranking Kernel</button>
+    </div>
+
+    <div id="loading">S Y N C I N G   D A T A ...</div>
+
+    <div class="content-container">
+        <div id="chartOil" class="tab-content active"><div id="domChartOil" style="width:100%; height:100%;"></div></div>
+        
+        <div id="tableOil" class="tab-content">
+            <div class="title-table">System Diagnostic: CPO Oil Losses</div>
+            <div class="table-split-container">
+                <table class="split-table">
+                    <thead><tr><th>No</th><th>Equipment ID</th><th>Lifespan</th><th>Loss Ratio</th><th>Score</th><th>Status</th></tr></thead>
+                    <tbody id="tbodyOil1"></tbody>
+                </table>
+                <table class="split-table">
+                    <thead><tr><th>No</th><th>Equipment ID</th><th>Lifespan</th><th>Loss Ratio</th><th>Score</th><th>Status</th></tr></thead>
+                    <tbody id="tbodyOil2"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="chartKernel" class="tab-content"><div id="domChartKernel" style="width:100%; height:100%;"></div></div>
+        
+        <div id="tableKernel" class="tab-content">
+            <div class="title-table">System Analysis: Kernel Process</div>
+            <div class="table-split-container">
+                <table class="split-table">
+                    <thead><tr><th>No</th><th>Equipment ID</th><th>Lifespan</th><th>Loss Ratio</th><th>Score</th><th>Status</th></tr></thead>
+                    <tbody id="tbodyKernel1"></tbody>
+                </table>
+                <table class="split-table">
+                    <thead><tr><th>No</th><th>Equipment ID</th><th>Lifespan</th><th>Loss Ratio</th><th>Score</th><th>Status</th></tr></thead>
+                    <tbody id="tbodyKernel2"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const colorMap = { 
+            'Optimal': '#00ff9d', 
+            'Anomali': '#fce803', 
+            'Aging': '#ff8c00',   
+            'Prioritas': '#ff003c' 
+        };
+        
+        const symbols = { gear: 'roundRect', oilDrop: 'circle', fruitBunch: 'diamond', nozzle: 'triangle' };
+
+        function getSymbol(componentName) {
+            let name = componentName.toLowerCase();
+            if (name.includes('arm') || name.includes('shaft')) return symbols.gear;
+            if (name.includes('nozzle')) return symbols.nozzle;
+            if (name.includes('press') || name.includes('cage')) return symbols.oilDrop;
+            return symbols.fruitBunch;
+        }
+
+        function getSymbolSize(val) { return (val * 20) + 12; } 
+
+        function getBadgeClass(status) {
+            if(status.includes("PRIORITAS")) return "badge-merah"; if(status.includes("ANOMALI")) return "badge-kuning"; if(status.includes("OPTIMAL")) return "badge-hijau"; return "badge-oranye";
+        }
+
+        function switchTab(tabId, btnElement) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active')); 
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active')); 
+            document.getElementById(tabId).classList.add('active'); 
+            btnElement.classList.add('active');
+
+            let chartDom = document.getElementById(tabId).querySelector('div');
+            if (chartDom) {
+                let chartInstance = echarts.getInstanceByDom(chartDom);
+                if (chartInstance) chartInstance.resize();
+            }
+        }
+
+        function renderChart(domId, title, data) {
+            var myChart = echarts.init(document.getElementById(domId));
+            
+            const seriesData = data.map((item, index) => {
+                let itemColor = colorMap[item.statusChart];
+                
+                let isTop = (index % 2 === 0);
+                let labelPos = isTop ? 'top' : 'bottom';
+                
+                let depth = index % 5; 
+                let labelDistance = 15 + (depth * 30);
+
+                if (item.yChart < 0.25 && !isTop) {
+                    labelPos = 'top';
+                    labelDistance += 40; 
+                }
+                if (item.yChart > 0.6 && isTop) {
+                    labelPos = 'bottom';
+                }
+
+                return {
+                    value: [item.umur, item.yChart],
+                    name: item.komponen,
+                    itemStyle: { color: itemColor, shadowBlur: 15, shadowColor: itemColor, opacity: 0.95 },
+                    symbol: getSymbol(item.komponen), symbolSize: getSymbolSize(item.yChart),
+                    label: { position: labelPos, distance: labelDistance, color: itemColor, borderColor: itemColor }
+                };
+            });
+
+            var option = {
+                title: { 
+                    text: title, left: 'center', top: 5,
+                    textStyle: { color: '#00f3ff', fontSize: 20, fontFamily: 'Inter', fontWeight: 800, textTransform: 'uppercase' } 
+                },
+                tooltip: {
+                    formatter: function (p) {
+                        return `<b style="font-family:'Inter'; font-size:14px; color:${p.color};">${p.data.name}</b><br/>
+                                <hr style="border-color: rgba(0,243,255,0.2); margin: 6px 0;">
+                                <span style="color:#CBD5E1">Umur Pakai:</span> <b style="color:#fff">${p.value[0].toFixed(0)}%</b><br/>
+                                <span style="color:#CBD5E1">Losses Ratio:</span> <b style="color:#fff">${p.value[1].toFixed(2)}%</b>`;
+                    },
+                    backgroundColor: 'rgba(3, 7, 16, 0.95)', borderColor: '#00f3ff', borderWidth: 1, textStyle: { color: '#F8FAFC', fontFamily: 'Inter' }
+                },
+                grid: { left: '8%', right: '10%', bottom: '25%', top: '25%', containLabel: true },
+                xAxis: { 
+                    name: 'UMUR PAKAI [%]', nameTextStyle: { color: '#00f3ff', fontFamily: 'Inter', fontWeight: 600, padding: [10,0,0,0] }, 
+                    type: 'value', axisLabel: { color: '#00f3ff', fontFamily: 'Inter', fontWeight: 500 }, 
+                    axisLine: { lineStyle: {color: '#00f3ff'}}, 
+                    splitLine: { lineStyle: { color: 'rgba(0,243,255,0.08)', type: 'dashed' } } 
+                },
+                yAxis: { 
+                    name: 'LOSS RATIO (%)', nameTextStyle: { color: '#00f3ff', fontFamily: 'Inter', fontWeight: 600, padding: [0,0,10,0] }, 
+                    type: 'value', axisLabel: { color: '#00f3ff', fontFamily: 'Inter', fontWeight: 500 }, 
+                    axisLine: { lineStyle: {color: '#00f3ff'}}, 
+                    splitLine: { lineStyle: { color: 'rgba(0,243,255,0.08)', type: 'dashed' } } 
+                },
+                series: [
+                    {
+                        type: 'effectScatter', 
+                        rippleEffect: { brushType: 'stroke', scale: 2.5 }, 
+                        data: seriesData, 
+                        label: {
+                            show: true, formatter: '{b}', fontSize: 10, fontFamily: 'Inter', fontWeight: 600,
+                            backgroundColor: 'rgba(3, 7, 16, 0.9)', borderType: 'solid', borderWidth: 1, borderRadius: 4, padding: [4, 8]
+                        },
+                        labelLine: { show: true, length2: 15, lineStyle: { type: 'solid', width: 1.5, opacity: 0.6 } },
+                        labelLayout: { moveOverlap: 'shiftX', hideOverlap: false },
+                        markArea: {
+                            silent: true, itemStyle: { opacity: 0.05 }, 
+                            data: [
+                                [ { xAxis: 0, yAxis: 0, itemStyle: { color: '#00ff9d' } }, { xAxis: 400, yAxis: 0.35 } ], 
+                                [ { xAxis: 400, yAxis: 0, itemStyle: { color: '#00f3ff' } }, { xAxis: 1000, yAxis: 0.35 } ], 
+                                [ { xAxis: 0, yAxis: 0.35, itemStyle: { color: '#fce803' } }, { xAxis: 400, yAxis: 0.7 } ], 
+                                [ { xAxis: 400, yAxis: 0.35, itemStyle: { color: '#ff003c' } }, { xAxis: 1000, yAxis: 0.7 } ]  
+                            ]
+                        },
+                        markLine: {
+                            silent: true, symbol: 'none',
+                            lineStyle: { color: 'rgba(0,243,255,0.4)', type: 'dashed', width: 1.5 },
+                            data: [ { xAxis: 400 }, { yAxis: 0.35 } ]
+                        }
+                    }
+                ]
+            };
+            myChart.setOption(option);
+            window.addEventListener('resize', () => myChart.resize());
+        }
+
+        function renderTable(tbodyId1, tbodyId2, data, filterPrioritas) {
+            let tbody1 = document.getElementById(tbodyId1); tbody1.innerHTML = "";
+            let tbody2 = document.getElementById(tbodyId2); tbody2.innerHTML = "";
+            
+            let filtered = filterPrioritas ? data.filter(r => r.statusTable.includes("PRIORITAS")) : data.filter(r => r.komponen);
+            filtered.sort((a,b) => b.skor - a.skor);
+
+            let halfLimit = Math.ceil(filtered.length / 2);
+
+            filtered.forEach((row, index) => {
+                let tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td style="color:#00f3ff; font-weight:700;">00${index + 1}</td>
+                    <td style="font-weight:700; color:#fff;">${row.komponen}</td>
+                    <td style="color:#CBD5E1;">${row.umur.toFixed(0)}%</td>
+                    <td style="color:#fce803; font-weight:700;">${row.lossTable.toFixed(2)}%</td>
+                    <td style="color:#00ff9d; font-weight:700;">${row.skor.toFixed(2)}</td>
+                    <td><span class="badge ${getBadgeClass(row.statusTable)}">${row.statusTable}</span></td>
+                `;
+                
+                if (index < halfLimit) {
+                    tbody1.appendChild(tr);
+                } else {
+                    tbody2.appendChild(tr);
+                }
+            });
+        }
+
+        const API_URL = "https://script.google.com/macros/s/AKfycbzA0wG2W7VUiPV3q90zuHxbh1DqW807LL42zOlTo8aM0GBc57NTRyuPkFLhFNxRxUvgPg/exec";
+
+        fetch(API_URL)
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('loading').style.display = 'none';
+                
+                // 🔴 LOGIC TANGGAL 🔴
+                // Jika dari Google Sheet kolom A1 ngirim data.tanggal
+                if (data.tanggal) {
+                    // Pakai date formatter biar jadinya kayak "20 MEI 2026"
+                    let tgl = new Date(data.tanggal);
+                    if(!isNaN(tgl)) {
+                        const namaBulan = ["JAN", "FEB", "MAR", "APR", "MEI", "JUN", "JUL", "AGU", "SEP", "OKT", "NOV", "DES"];
+                        document.getElementById('hudDate').innerText = `${tgl.getDate()} ${namaBulan[tgl.getMonth()]} ${tgl.getFullYear()}`;
+                    } else {
+                        // Kalau ternyata string biasa, langsung tampilin aja
+                        document.getElementById('hudDate').innerText = data.tanggal.toUpperCase();
+                    }
+                } else {
+                    // Kalau di API belum ditambahin properti tanggal, default ke tulisan ini
+                    document.getElementById('hudDate').innerText = "20 MEI 2026";
+                }
+
+                renderChart('domChartOil', 'Quadrant Analysis: Oil Losses', data.oil);
+                renderChart('domChartKernel', 'Quadrant Analysis: Kernel Losses', data.kernel);
+                
+                renderTable('tbodyOil1', 'tbodyOil2', data.oil, true); 
+                renderTable('tbodyKernel1', 'tbodyKernel2', data.kernel, false);
+            })
+            .catch(err => { 
+                console.error(err); 
+                document.getElementById('loading').innerText = "CONNECTION FAILED."; 
+                document.getElementById('loading').style.color = "#ff003c";
+            });
+    </script>
+</body>
+</html>
